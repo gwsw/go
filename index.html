@@ -1,0 +1,141 @@
+<!doctype html>
+<meta charset="UTF-8">
+<html>
+<head>
+<title>Go</title>
+</head>
+<body onload="main()">
+<canvas id="canvas" width="1" height="1" style="font-family:Arial"></canvas>
+
+<script src="../jlib/gfx.js"></script>
+
+<script>
+
+// --------------------------------------------------------------------
+// Globals
+var _game = null;
+
+var config = {
+    xxx                    : 1,
+
+    color_bg               : "103020",
+    color_board            : "d19d00",
+};
+
+// --------------------------------------------------------------------
+class Game {
+    constructor(gfx) {
+        this.gfx = gfx;
+        this.playing = true;
+        this.paused = false;
+        this.pause_dur = 0;
+    }
+    resize() {
+    }
+    run() {
+        if (!this.playing || this.paused) return;
+        const tm = now() - this.pause_dur;
+        this.update(tm);
+        this.draw();
+    }
+    pause(paused) {
+        this.paused = paused;
+        if (this.paused) {
+            this.pause_start = now();
+        } else { // unpause
+            this.pause_dur += now() - this.pause_start;
+        }
+        this.draw();
+    }
+    update(tm) {
+    }
+    draw() {
+        this.gfx.clear(config.color_bg);
+        const canvas = this.gfx.ctx.canvas;
+        const cw = canvas.width;
+        const ch = canvas.height;
+        let bs;
+        let xm;
+        let ym;
+        if (cw < ch) {
+            xm = cw * .05;
+            bs = cw - 2*xm;
+            ym = (ch - bs) / 2;
+        } else {
+            ym = ch * .05;
+            bs = ch - 2*ym;
+            xm = (cw - bs) / 2;
+        }
+        this.gfx.draw_rect(xm, ym, bs, bs, config.color_board);
+    }
+    event_keystroke(key, down) {
+        if (!down) return;
+        if (this.paused && key != 'p' && key != 'h' && key != '?') return;
+        switch (key) {
+        case 'p':
+            this.pause(!this.paused);
+            break;
+        case 'ArrowDown':
+        case 'ArrowUp':
+        case 'ArrowRight':
+        case 'ArrowLeft':
+            break;
+        }
+    }
+    event_mouse(event, x, y) {
+        if (event == Game.MOUSE_DOWN) {
+        }
+    }
+
+    static _event_keydown(e) { if (_game != null) _game.event_keystroke(e.key, true); }
+    static _event_keyup(e) { if (_game != null) _game.event_keystroke(e.key, false); }
+    static _event_mousedown(e) { if (_game != null) _game.event_mouse(Game.MOUSE_DOWN, e.offsetX, e.offsetY); }
+    static _event_mouseup(e) { if (_game != null) _game.event_mouse(Game.MOUSE_UP, e.offsetX, e.offsetY); }
+    static _event_mousemove(e) { if (_game != null) _game.event_mouse(Game.MOUSE_MOVE, e.offsetX, e.offsetY); }
+
+    static MOUSE_DOWN = 0;
+    static MOUSE_UP   = 1;
+    static MOUSE_MOVE = 2;
+}; // class Game
+
+// --------------------------------------------------------------------
+
+function run_game() {
+    if (_game != null) _game.run();
+    window.requestAnimationFrame(run_game);
+}
+
+function canvas_size(name, w, h) {
+    const canvas = el(name);
+    canvas.width = w;
+    canvas.height = h;
+    return canvas;
+}
+
+function canvas_to_window() {
+    const s = 20;
+    return canvas_size("canvas", window.innerWidth - s, window.innerHeight - s);
+}
+
+function canvas_resize() {
+    canvas_to_window();
+    if (_game != null) _game.resize();
+}
+
+function main() {
+    munge_config();
+    const canvas = canvas_to_window();
+    const gfx = new Graphics(canvas.getContext("2d"), canvas.height*.040);
+    _game = new Game(gfx);
+    document.addEventListener('keyup', Game._event_keyup);
+    document.addEventListener('keydown', Game._event_keydown);
+    document.addEventListener('mousedown', Game._event_mousedown);
+    document.addEventListener('mouseup', Game._event_mouseup);
+    document.addEventListener('mousemove', Game._event_mousemove);
+    window.addEventListener('resize', canvas_resize, false);
+    run_game();
+}
+
+</script>
+</body>
+</html>
