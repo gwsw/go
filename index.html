@@ -16,16 +16,83 @@
 var _game = null;
 
 var config = {
-    xxx                    : 1,
+    line_thick             : 1,
 
     color_bg               : "103020",
+    color_black            : "101010",
     color_board            : "d19d00",
+    color_line             : "000000",
+    color_white            : "f0f0f0",
+};
+
+// --------------------------------------------------------------------
+class Stone {
+    constructor(x, y, side) {
+        this.side = side;
+        this.x = x;
+        this.y = y;
+    }
+    draw(gfx, x, y) {
+        const color = (this.side == 0) ? color_black : color_white;
+        const r = 
+        gfx.draw_circle(x, y, r, color);
+    }
+};
+
+// --------------------------------------------------------------------
+class Board {
+    constructor(w, h) {
+        this.w = w;
+        this.h = h;
+        this.stones = [];
+    }
+    add_stone(stone) {
+        this.stones.push(stone);
+    }
+    draw(gfx) {
+        const sz = this.size_up(gfx);
+        gfx.draw_rect(sz.xm, sz.ym, sz.bs, sz.bs, config.color_board);
+
+        for (let xn = 0; xn <= this.w; ++xn) {
+            const x = sz.xm + sz.m + sz.sw * xn;
+            gfx.draw_rect(x, sz.ym + sz.m, config.line_thick, sz.fld, config.color_line);
+        }
+        for (let yn = 0; yn <= this.h; ++yn) {
+            const y = sz.ym + sz.m + sz.sh * yn;
+            gfx.draw_rect(sz.xm + sz.m, y, sz.fld, config.line_thick, config.color_line);
+        }
+
+        for (const stone of this.stones) {
+            stone.draw(gfx, sz.xm + sz.m + sz.sw * stone.x, sz.ym + sz.m + sz.sh * stone.y);
+        }
+    }
+    size_up(gfx) {
+        const cw = gfx.ctx.canvas.width;
+        const ch = gfx.ctx.canvas.height;
+        let r = {};
+        if (cw < ch) {
+            r.xm = cw * .05;
+            r.bs = cw - 2*r.xm;
+            r.ym = (ch - r.bs) / 2;
+        } else {
+            r.ym = ch * .05;
+            r.bs = ch - 2*r.ym;
+            r.xm = (cw - r.bs) / 2;
+        }
+        r.m   = r.bs * .04;
+        r.fld = r.bs - 2*r.m;
+        r.sw  = r.fld / this.w;
+        r.sh  = r.fld / this.h;
+        return r;
+    }
+
 };
 
 // --------------------------------------------------------------------
 class Game {
-    constructor(gfx) {
+    constructor(gfx, w, h) {
         this.gfx = gfx;
+        this.board = new Board(w, h);
         this.playing = true;
         this.paused = false;
         this.pause_dur = 0;
@@ -51,22 +118,7 @@ class Game {
     }
     draw() {
         this.gfx.clear(config.color_bg);
-        const canvas = this.gfx.ctx.canvas;
-        const cw = canvas.width;
-        const ch = canvas.height;
-        let bs;
-        let xm;
-        let ym;
-        if (cw < ch) {
-            xm = cw * .05;
-            bs = cw - 2*xm;
-            ym = (ch - bs) / 2;
-        } else {
-            ym = ch * .05;
-            bs = ch - 2*ym;
-            xm = (cw - bs) / 2;
-        }
-        this.gfx.draw_rect(xm, ym, bs, bs, config.color_board);
+        this.board.draw(this.gfx);
     }
     event_keystroke(key, down) {
         if (!down) return;
@@ -105,10 +157,10 @@ function run_game() {
     window.requestAnimationFrame(run_game);
 }
 
-function canvas_size(name, w, h) {
+function canvas_size(name, width, height) {
     const canvas = el(name);
-    canvas.width = w;
-    canvas.height = h;
+    canvas.width = width;
+    canvas.height = height;
     return canvas;
 }
 
@@ -126,7 +178,7 @@ function main() {
     munge_config();
     const canvas = canvas_to_window();
     const gfx = new Graphics(canvas.getContext("2d"), canvas.height*.040);
-    _game = new Game(gfx);
+    _game = new Game(gfx, 19, 19);
     document.addEventListener('keyup', Game._event_keyup);
     document.addEventListener('keydown', Game._event_keydown);
     document.addEventListener('mousedown', Game._event_mousedown);
