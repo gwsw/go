@@ -19,9 +19,11 @@ var config = {
     line_thick             : 1,
     stone_frac             : .5,
 
+    color_active           : "80c000",
     color_bg               : "103020",
     color_black            : "101010",
     color_board            : "d19d00",
+    color_inactive         : "c04000",
     color_line             : "000000",
     color_panel_bg         : "203050",
     color_panel_side_bg    : "80c000",
@@ -37,6 +39,9 @@ class ActiveRect {
         this.h = h;
         this.xb = xb;
         this.yb = yb;
+        this.set_color(bg_color, border_color);
+    }
+    set_color(bg_color, border_color = null) {
         this.bg_color = bg_color;
         this.border_color = border_color;
     }
@@ -77,16 +82,26 @@ class Stone {
 // --------------------------------------------------------------------
 class Board {
     constructor(w, h) {
-        this.w = w;
-        this.h = h;
         this.stones = [];
         this.curr_side = 0;
+        this.set_size(w, h);
+    }
+    set_size(w, h) {
+        this.del_stones();
+        this.w = w;
+        this.h = h;
     }
     add_stone(x, y, side) {
         this.stones.push(new Stone(x, y, side));
     }
     del_stone(sx) {
         this.stones.splice(sx, 1);
+    }
+    del_stones() {
+        this.stones.splice(0);
+    }
+    num_stones() {
+        return this.stones.length;
     }
     get_stone(x, y) {
         for (let sx = 0; sx < this.stones.length; ++sx) {
@@ -97,8 +112,9 @@ class Board {
     }
     draw(gfx) {
         const sz = this.size_up(gfx);
+        // Draw board.
         gfx.draw_rect(sz.xm, sz.ym, sz.bs, sz.bs, config.color_board);
-
+        // Draw grid.
         const xm = sz.xm + sz.m;
         const ym = sz.ym + sz.m;
         for (let xn = 0; xn < this.w; ++xn) {
@@ -107,17 +123,32 @@ class Board {
         for (let yn = 0; yn < this.h; ++yn) {
             gfx.draw_rect(xm, ym + sz.sh * yn, sz.fld, config.line_thick, config.color_line);
         }
-        const star_edge = 3;
-        const xstep = Math.floor((this.w - 1) / 2) - star_edge;
-        const ystep = Math.floor((this.h - 1) / 2) - star_edge;
-        for (let xstar = star_edge; xstar <= this.w; xstar += xstep) {
-            for (let ystar = star_edge; ystar <= this.h; ystar += ystep) {
-                gfx.draw_circle(xm + sz.sw * xstar, ym + sz.sh * ystar, sz.sr, config.color_line);
-            }
+        // Draw stars.
+        const se = (this.w < 11 || this.h < 11) ? 2 : 3;
+        const w2 = (this.w % 2) ? Math.floor(this.w / 2) : 0;
+        const h2 = (this.h % 2) ? Math.floor(this.h / 2) : 0;
+        this.draw_star(gfx, sz, se, se);
+        this.draw_star(gfx, sz, se, this.h - se - 1);
+        this.draw_star(gfx, sz, this.w - se - 1, se);
+        this.draw_star(gfx, sz, this.w - se - 1, this.h - se - 1);
+        if (w2 && h2) { // center of board
+            this.draw_star(gfx, sz, w2, h2);
         }
+        if (w2 && this.w > 13) {
+            this.draw_star(gfx, sz, w2, se);
+            this.draw_star(gfx, sz, w2, this.h - se - 1);
+        }
+        if (h2 && this.h > 13) {
+            this.draw_star(gfx, sz, se, h2);
+            this.draw_star(gfx, sz, this.w - se - 1, h2);
+        }
+        // Draw stones.
         for (const stone of this.stones) {
             stone.draw(gfx, sz);
         }
+    }
+    draw_star(gfx, sz, x, y) {
+        gfx.draw_circle(sz.xm + sz.m + sz.sw * x, sz.ym + sz.m + sz.sh * y, sz.sr, config.color_line);
     }
     mouse(gfx, bx, by) {
         const sz = this.size_up(gfx);
@@ -152,14 +183,13 @@ class Board {
             r.bs = ch - 2*r.ym;
             r.xm = r.ym;
         }
-        r.m   = r.bs * .04;
+        r.sw = r.bs / this.w;
+        r.sh = r.bs / this.h;
+        r.m = Math.min(r.sw/2, r.sh/2);
         r.fld = r.bs - 2*r.m;
-        r.sw  = r.fld / (this.w - 1);
-        r.sh  = r.fld / (this.h - 1);
         r.sr = r.sh * .10; ///
         return r;
     }
-
 };
 
 // --------------------------------------------------------------------
@@ -178,12 +208,37 @@ class Panel {
         const sy = sz.side.y + sz.side.h/2;
         sz.side.draw(gfx);
         Stone.draw_at(gfx, sx, sy, sr, this.board.curr_side);
-        gfx.draw_text(sz.side.x + 3*sr, sz.side.y + (sz.side.h - gfx.font_height) / 2, (this.board.curr_side == 0) ? "BLACK" : "WHITE", config.color_black);
+        gfx.draw_text(sz.side.x + 3*sr, sz.side.y + (sz.side.h - gfx.font_height) / 2,
+            (this.board.curr_side == 0) ? "BLACK" : "WHITE", config.color_black);
+        if (this.board.w == 9 && this.board.h == 9)
+            sz.bd9.set_color(config.color_active);
+        else if (this.board.w == 13 && this.board.h == 13)
+            sz.bd13.set_color(config.color_active);
+        else if (this.board.w == 19 && this.board.h == 19)
+            sz.bd19.set_color(config.color_active);
+        sz.bd9.draw(gfx);
+        gfx.draw_centered_text(sz.bd9.x, sz.bd9.y, sz.bd9.w, "9x9", config.color_black);
+        sz.bd13.draw(gfx);
+        gfx.draw_centered_text(sz.bd13.x, sz.bd9.y, sz.bd13.w, "13x13", config.color_black);
+        sz.bd19.draw(gfx);
+        gfx.draw_centered_text(sz.bd19.x, sz.bd9.y, sz.bd19.w, "19x19", config.color_black);
     }
     mouse(gfx, x, y) {
         const sz = this.size_up(gfx);
         if (sz.side.is_in(x, y)) {
             this.board.curr_side = 1 - this.board.curr_side;
+            return true;
+        }
+        if (sz.bd9.is_in(x, y)) {
+            this.board.set_size(9, 9);
+            return true;
+        }
+        if (sz.bd13.is_in(x, y)) {
+            this.board.set_size(13, 13);
+            return true;
+        }
+        if (sz.bd19.is_in(x, y)) {
+            this.board.set_size(19, 19);
             return true;
         }
         return false;
@@ -198,15 +253,23 @@ class Panel {
             w = cw * .7;
             h = .95*ch - bsz.ym - bsz.bs - 20;
             x = (cw - w) / 2;
-            y = bsz.ym + bsz.m + bsz.bs + 10; ///
+            y = bsz.ym + bsz.bs + 10; ///
         } else {
             w = .95*cw - bsz.xm - bsz.bs;
             h = bsz.bs;
-            x = bsz.xm + bsz.m + bsz.bs + 10; ///
+            x = bsz.xm + bsz.bs + 10; ///
             y = bsz.ym;
         }
+        const vsp = 8;
+        const hsp = 12;
+        const bh = 42;
         r.rect = new ActiveRect(x, y, w, h, config.color_panel_bg);
-        r.side = new ActiveRect(x + 10, y + 10, 150, 42, config.color_panel_side_bg);
+        r.side = new ActiveRect(x + hsp, y + vsp, 150, bh, config.color_panel_side_bg);
+        const bdy = r.side.y + r.side.h + vsp;
+        const bdw = 80;
+        r.bd9 = new ActiveRect(x + hsp, bdy, bdw, bh, config.color_inactive);
+        r.bd13 = new ActiveRect(r.bd9.x + r.bd9.w + hsp, bdy, bdw, bh, config.color_inactive);
+        r.bd19 = new ActiveRect(r.bd13.x + r.bd13.w + hsp, bdy, bdw, bh, config.color_inactive);
         return r;
     }
 };
