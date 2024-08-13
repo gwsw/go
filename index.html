@@ -23,6 +23,7 @@ var config = {
     color_black            : "101010",
     color_board            : "d19d00",
     color_line             : "000000",
+    color_panel_bg         : "203050",
     color_white            : "f0f0f0",
 };
 
@@ -36,13 +37,16 @@ class Stone {
     draw(gfx, sz) {
         const xm = sz.xm + sz.m;
         const ym = sz.ym + sz.m;
-        const r = sz.sh * config.stone_frac;
-        const color = (this.side == 0) ? config.color_black : config.color_white;
-        const ocolor = (this.side == 0) ? config.color_white : config.color_black;
         const x = xm + this.x * sz.sw;
         const y = ym + this.y * sz.sh;
+        const r = sz.sh * config.stone_frac;
+        const color = Stone.color(this.side);
+        const ocolor = Stone.color(1 - this.side);
         gfx.draw_circle(x, y, r, ocolor);
         gfx.draw_circle(x, y, r-1, color);
+    }
+    static color(side) {
+        return (side == 0) ? config.color_black : config.color_white;
     }
 };
 
@@ -86,10 +90,21 @@ class Board {
     }
     mouse(gfx, bx, by) {
         const sz = this.size_up(gfx);
-        const x = Math.floor((bx - sz.xm - sz.m + (sz.sw/2)) / sz.sw);
-        const y = Math.floor((by - sz.ym - sz.m + (sz.sh/2)) / sz.sh);
-        this.add_stone(x, y, this.curr_side);
-        this.curr_side = 1 - this.curr_side;
+        const xm = sz.xm + sz.m;
+        const ym = sz.ym + sz.m;
+        if (bx >= xm && bx < xm + sz.bs || by >= ym && by < ym + sz.bs) {
+            const x = Math.floor((bx - xm + (sz.sw/2)) / sz.sw);
+            const y = Math.floor((by - ym + (sz.sh/2)) / sz.sh);
+            const stone = null;
+            ///const stone = this.get_stone(x, y);
+            if (stone == null) {
+                this.add_stone(x, y, this.curr_side);
+                this.curr_side = 1 - this.curr_side;
+            } else {
+                this.del_stone(stone);
+            }
+            this.draw(gfx);
+        }
     }
     size_up(gfx) {
         const cw = gfx.ctx.canvas.width;
@@ -98,11 +113,11 @@ class Board {
         if (cw < ch) {
             r.xm = cw * .05;
             r.bs = cw - 2*r.xm;
-            r.ym = (ch - r.bs) / 2;
+            r.ym = r.xm;
         } else {
             r.ym = ch * .05;
             r.bs = ch - 2*r.ym;
-            r.xm = (cw - r.bs) / 2;
+            r.xm = r.ym;
         }
         r.m   = r.bs * .04;
         r.fld = r.bs - 2*r.m;
@@ -115,20 +130,48 @@ class Board {
 };
 
 // --------------------------------------------------------------------
+class Panel {
+    constructor(board) {
+        this.board = board;
+    }
+    draw(gfx) {
+        const side = this.board.curr_side;
+        const sz = this.size_up(gfx);
+        gfx.draw_rect(sz.x, sz.y, sz.w, sz.h, config.color_panel_bg);
+    }
+    mouse(gfx, x, y) {
+    }
+    size_up(gfx) {
+        const cw = gfx.ctx.canvas.width;
+        const ch = gfx.ctx.canvas.height;
+        const bsz = this.board.size_up(gfx);
+        let r = {};
+        if (cw < ch) {
+            r.w = cw * .7;
+            r.h = .95*ch - bsz.ym - bsz.bs - 20;
+            r.x = (cw - r.w) / 2;
+            r.y = bsz.ym + bsz.m + bsz.bs + 10; ///
+        } else {
+            r.w = .95*cw - bsz.xm - bsz.bs;
+            r.h = bsz.bs;
+            r.x = bsz.xm + bsz.m + bsz.bs + 10; ///
+            r.y = bsz.ym;
+        }
+        return r;
+    }
+};
+
+// --------------------------------------------------------------------
 class Game {
     constructor(gfx, w, h) {
         this.gfx = gfx;
         this.board = new Board(w, h);
+        this.panel = new Panel(this.board);
         this.playing = true;
         this.paused = false;
         this.pause_dur = 0;
     }
     resize() {
-    }
-    run() {
-        if (!this.playing || this.paused) return;
-        const tm = now() - this.pause_dur;
-        this.update(tm);
         this.draw();
     }
     pause(paused) {
@@ -140,11 +183,10 @@ class Game {
         }
         this.draw();
     }
-    update(tm) {
-    }
     draw() {
         this.gfx.clear(config.color_bg);
         this.board.draw(this.gfx);
+        this.panel.draw(this.gfx);
     }
     event_keystroke(key, down) {
         if (!down) return;
@@ -163,6 +205,7 @@ class Game {
     event_mouse(event, x, y) {
         if (event == Game.MOUSE_DOWN) {
             this.board.mouse(this.gfx, x, y);
+            this.panel.mouse(this.gfx, x, y);
         }
     }
 
@@ -178,11 +221,6 @@ class Game {
 }; // class Game
 
 // --------------------------------------------------------------------
-
-function run_game() {
-    if (_game != null) _game.run();
-    window.requestAnimationFrame(run_game);
-}
 
 function canvas_size(name, width, height) {
     const canvas = el(name);
@@ -212,7 +250,7 @@ function main() {
     document.addEventListener('mouseup', Game._event_mouseup);
     document.addEventListener('mousemove', Game._event_mousemove);
     window.addEventListener('resize', canvas_resize, false);
-    run_game();
+    _game.draw();
 }
 
 </script>
