@@ -32,10 +32,12 @@ class Stone {
         this.x = x;
         this.y = y;
     }
-    draw(gfx, x, y) {
+    draw(gfx, sz) {
+        const xm = sz.xm + sz.m;
+        const ym = sz.ym + sz.m;
+        const r = sz.sh * .4;
         const color = (this.side == 0) ? color_black : color_white;
-        const r = 
-        gfx.draw_circle(x, y, r, color);
+        gfx.draw_circle(xm + this.x * sz.sw, ym + this.y * sz.sh, r, color);
     }
 };
 
@@ -53,17 +55,25 @@ class Board {
         const sz = this.size_up(gfx);
         gfx.draw_rect(sz.xm, sz.ym, sz.bs, sz.bs, config.color_board);
 
+        const xm = sz.xm + sz.m;
+        const ym = sz.ym + sz.m;
         for (let xn = 0; xn <= this.w; ++xn) {
-            const x = sz.xm + sz.m + sz.sw * xn;
-            gfx.draw_rect(x, sz.ym + sz.m, config.line_thick, sz.fld, config.color_line);
+            gfx.draw_rect(xm + sz.sw * xn, ym, config.line_thick, sz.fld, config.color_line);
         }
         for (let yn = 0; yn <= this.h; ++yn) {
-            const y = sz.ym + sz.m + sz.sh * yn;
-            gfx.draw_rect(sz.xm + sz.m, y, sz.fld, config.line_thick, config.color_line);
+            gfx.draw_rect(xm, ym + sz.sh * yn, sz.fld, config.line_thick, config.color_line);
+        }
+        const xstep = Math.floor(((this.w + 1) - (2 * 3)) / 2);
+        const ystep = Math.floor(((this.h + 1) - (2 * 3)) / 2);
+        const sr = sz.sh * .10; ///
+        for (let xstar = 3; xstar < this.w; xstar += xstep) {
+            for (let ystar = 3; ystar < this.h; ystar += ystep) {
+                gfx.draw_circle(xm + sz.sw * xstar, ym + sz.sh * ystar, sr, config.color_line);
+            }
         }
 
         for (const stone of this.stones) {
-            stone.draw(gfx, sz.xm + sz.m + sz.sw * stone.x, sz.ym + sz.m + sz.sh * stone.y);
+            stone.draw(gfx, sz);
         }
     }
     size_up(gfx) {
