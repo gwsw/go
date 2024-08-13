@@ -65,6 +65,16 @@ class Board {
     add_stone(x, y, side) {
         this.stones.push(new Stone(x, y, side));
     }
+    del_stone(sx) {
+        this.stones.splice(sx, 1);
+    }
+    get_stone(x, y) {
+        for (let sx = 0; sx < this.stones.length; ++sx) {
+            if (this.stones[sx].x == x && this.stones[sx].y == y)
+                return sx;
+        }
+        return -1;
+    }
     draw(gfx) {
         const sz = this.size_up(gfx);
         gfx.draw_rect(sz.xm, sz.ym, sz.bs, sz.bs, config.color_board);
@@ -98,13 +108,12 @@ class Board {
             const x = Math.floor((bx - xm + (sz.sw/2)) / sz.sw);
             const y = Math.floor((by - ym + (sz.sh/2)) / sz.sh);
             if (x >= 0 && x <= this.w && y >= 0 && y <= this.h) {
-                const stone = null;
-                ///const stone = this.get_stone(x, y);
-                if (stone == null) {
+                const sx = this.get_stone(x, y);
+                if (sx < 0) {
                     this.add_stone(x, y, this.curr_side);
                     this.curr_side = 1 - this.curr_side;
                 } else {
-                    this.del_stone(stone);
+                    this.del_stone(sx);
                 }
                 return true;
             }
@@ -192,19 +201,8 @@ class Game {
         this.board = new Board(w, h);
         this.panel = new Panel(this.board);
         this.playing = true;
-        this.paused = false;
-        this.pause_dur = 0;
     }
     resize() {
-        this.draw();
-    }
-    pause(paused) {
-        this.paused = paused;
-        if (this.paused) {
-            this.pause_start = now();
-        } else { // unpause
-            this.pause_dur += now() - this.pause_start;
-        }
         this.draw();
     }
     draw() {
@@ -214,11 +212,7 @@ class Game {
     }
     event_keystroke(key, down) {
         if (!down) return;
-        if (this.paused && key != 'p' && key != 'h' && key != '?') return;
         switch (key) {
-        case 'p':
-            this.pause(!this.paused);
-            break;
         case 'ArrowDown':
         case 'ArrowUp':
         case 'ArrowRight':
