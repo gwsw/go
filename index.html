@@ -81,15 +81,15 @@ class Board {
 
         const xm = sz.xm + sz.m;
         const ym = sz.ym + sz.m;
-        for (let xn = 0; xn <= this.w; ++xn) {
+        for (let xn = 0; xn < this.w; ++xn) {
             gfx.draw_rect(xm + sz.sw * xn, ym, config.line_thick, sz.fld, config.color_line);
         }
-        for (let yn = 0; yn <= this.h; ++yn) {
+        for (let yn = 0; yn < this.h; ++yn) {
             gfx.draw_rect(xm, ym + sz.sh * yn, sz.fld, config.line_thick, config.color_line);
         }
         const star_edge = 3;
-        const xstep = Math.floor((this.w + 1) / 2) - star_edge;
-        const ystep = Math.floor((this.h + 1) / 2) - star_edge;
+        const xstep = Math.floor((this.w - 1) / 2) - star_edge;
+        const ystep = Math.floor((this.h - 1) / 2) - star_edge;
         for (let xstar = star_edge; xstar <= this.w; xstar += xstep) {
             for (let ystar = star_edge; ystar <= this.h; ystar += ystep) {
                 gfx.draw_circle(xm + sz.sw * xstar, ym + sz.sh * ystar, sz.sr, config.color_line);
@@ -135,8 +135,8 @@ class Board {
         }
         r.m   = r.bs * .04;
         r.fld = r.bs - 2*r.m;
-        r.sw  = r.fld / this.w;
-        r.sh  = r.fld / this.h;
+        r.sw  = r.fld / (this.w - 1);
+        r.sh  = r.fld / (this.h - 1);
         r.sr = r.sh * .10; ///
         return r;
     }
