@@ -24,8 +24,28 @@ var config = {
     color_board            : "d19d00",
     color_line             : "000000",
     color_panel_bg         : "203050",
-    color_panel_side_bg    : "a0a000",
+    color_panel_side_bg    : "80c000",
     color_white            : "f0f0f0",
+};
+
+// --------------------------------------------------------------------
+class ActiveRect {
+    constructor(x, y, w, h, bg_color, xb = 0, yb = 0, border_color = null) {
+        this.x = x;
+        this.y = y;
+        this.w = w;
+        this.h = h;
+        this.xb = xb;
+        this.yb = yb;
+        this.bg_color = bg_color;
+        this.border_color = border_color;
+    }
+    is_in(x, y) {
+        return x >= this.x && x < this.x + this.w && y >= this.y && y < this.y + this.h;
+    }
+    draw(gfx) {
+        gfx.draw_outlined_rect(this.x, this.y, this.w, this.h, this.xb, this.yb, this.bg_color, this.border_color);
+    }
 };
 
 // --------------------------------------------------------------------
@@ -95,7 +115,6 @@ class Board {
                 gfx.draw_circle(xm + sz.sw * xstar, ym + sz.sh * ystar, sz.sr, config.color_line);
             }
         }
-
         for (const stone of this.stones) {
             stone.draw(gfx, sz);
         }
@@ -151,20 +170,19 @@ class Panel {
     draw(gfx) {
         const side = this.board.curr_side;
         const sz = this.size_up(gfx);
-        gfx.draw_rect(sz.x, sz.y, sz.w, sz.h, config.color_panel_bg);
+        sz.rect.draw(gfx);
 
         const sm = 8;
-        const sr = sz.side_h * .4;
-        const sx = sz.side_x + sr * 1.1;
-        const sy = sz.side_y + sz.side_h/2;
-        gfx.draw_rect(sz.side_x, sz.side_y, sz.side_w, sz.side_h, config.color_panel_side_bg);
+        const sr = sz.side.h * .4;
+        const sx = sz.side.x + sr * 1.1;
+        const sy = sz.side.y + sz.side.h/2;
+        sz.side.draw(gfx);
         Stone.draw_at(gfx, sx, sy, sr, this.board.curr_side);
-        gfx.draw_text(sz.side_x + 2*sr, sz.side_y, (this.board.curr_side == 0) ? "BLACK" : "WHITE", config.color_black);
+        gfx.draw_text(sz.side.x + 3*sr, sz.side.y + (sz.side.h - gfx.font_height) / 2, (this.board.curr_side == 0) ? "BLACK" : "WHITE", config.color_black);
     }
     mouse(gfx, x, y) {
         const sz = this.size_up(gfx);
-        if (x >= sz.side_x && x < sz.side_x + sz.side_w &&
-            y >= sz.side_y && y < sz.side_y + sz.side_h) {
+        if (sz.side.is_in(x, y)) {
             this.board.curr_side = 1 - this.board.curr_side;
             return true;
         }
@@ -175,21 +193,20 @@ class Panel {
         const ch = gfx.ctx.canvas.height;
         const bsz = this.board.size_up(gfx);
         let r = {};
+        let x,y,w,h;
         if (cw < ch) {
-            r.w = cw * .7;
-            r.h = .95*ch - bsz.ym - bsz.bs - 20;
-            r.x = (cw - r.w) / 2;
-            r.y = bsz.ym + bsz.m + bsz.bs + 10; ///
+            w = cw * .7;
+            h = .95*ch - bsz.ym - bsz.bs - 20;
+            x = (cw - w) / 2;
+            y = bsz.ym + bsz.m + bsz.bs + 10; ///
         } else {
-            r.w = .95*cw - bsz.xm - bsz.bs;
-            r.h = bsz.bs;
-            r.x = bsz.xm + bsz.m + bsz.bs + 10; ///
-            r.y = bsz.ym;
+            w = .95*cw - bsz.xm - bsz.bs;
+            h = bsz.bs;
+            x = bsz.xm + bsz.m + bsz.bs + 10; ///
+            y = bsz.ym;
         }
-        r.side_x = r.x + 10; ///
-        r.side_y = r.y + 10; ///
-        r.side_w = 150;  ////
-        r.side_h = 42; ////
+        r.rect = new ActiveRect(x, y, w, h, config.color_panel_bg);
+        r.side = new ActiveRect(x + 10, y + 10, 150, 42, config.color_panel_side_bg);
         return r;
     }
 };
@@ -203,6 +220,7 @@ class Game {
         this.playing = true;
     }
     resize() {
+        this.gfx.set_font_size(canvas.height*.040);
         this.draw();
     }
     draw() {
