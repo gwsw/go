@@ -17,6 +17,7 @@ var _game = null;
 
 var config = {
     line_thick             : 1,
+    stone_frac             : .5,
 
     color_bg               : "103020",
     color_black            : "101010",
@@ -35,9 +36,13 @@ class Stone {
     draw(gfx, sz) {
         const xm = sz.xm + sz.m;
         const ym = sz.ym + sz.m;
-        const r = sz.sh * .4;
-        const color = (this.side == 0) ? color_black : color_white;
-        gfx.draw_circle(xm + this.x * sz.sw, ym + this.y * sz.sh, r, color);
+        const r = sz.sh * config.stone_frac;
+        const color = (this.side == 0) ? config.color_black : config.color_white;
+        const ocolor = (this.side == 0) ? config.color_white : config.color_black;
+        const x = xm + this.x * sz.sw;
+        const y = ym + this.y * sz.sh;
+        gfx.draw_circle(x, y, r, ocolor);
+        gfx.draw_circle(x, y, r-1, color);
     }
 };
 
@@ -47,9 +52,12 @@ class Board {
         this.w = w;
         this.h = h;
         this.stones = [];
+        this.add_stone(0, 0, 0);
+        this.add_stone(2, 3, 1);
+        this.curr_side = 0;
     }
-    add_stone(stone) {
-        this.stones.push(stone);
+    add_stone(x, y, side) {
+        this.stones.push(new Stone(x, y, side));
     }
     draw(gfx) {
         const sz = this.size_up(gfx);
@@ -63,18 +71,25 @@ class Board {
         for (let yn = 0; yn <= this.h; ++yn) {
             gfx.draw_rect(xm, ym + sz.sh * yn, sz.fld, config.line_thick, config.color_line);
         }
-        const xstep = Math.floor(((this.w + 1) - (2 * 3)) / 2);
-        const ystep = Math.floor(((this.h + 1) - (2 * 3)) / 2);
-        const sr = sz.sh * .10; ///
-        for (let xstar = 3; xstar < this.w; xstar += xstep) {
-            for (let ystar = 3; ystar < this.h; ystar += ystep) {
-                gfx.draw_circle(xm + sz.sw * xstar, ym + sz.sh * ystar, sr, config.color_line);
+        const star_edge = 3;
+        const xstep = Math.floor((this.w + 1) / 2) - star_edge;
+        const ystep = Math.floor((this.h + 1) / 2) - star_edge;
+        for (let xstar = star_edge; xstar <= this.w; xstar += xstep) {
+            for (let ystar = star_edge; ystar <= this.h; ystar += ystep) {
+                gfx.draw_circle(xm + sz.sw * xstar, ym + sz.sh * ystar, sz.sr, config.color_line);
             }
         }
 
         for (const stone of this.stones) {
             stone.draw(gfx, sz);
         }
+    }
+    mouse(gfx, bx, by) {
+        const sz = this.size_up(gfx);
+        const x = Math.floor((bx - sz.xm - sz.m + (sz.sw/2)) / sz.sw);
+        const y = Math.floor((by - sz.ym - sz.m + (sz.sh/2)) / sz.sh);
+        this.add_stone(x, y, this.curr_side);
+        this.curr_side = 1 - this.curr_side;
     }
     size_up(gfx) {
         const cw = gfx.ctx.canvas.width;
@@ -93,6 +108,7 @@ class Board {
         r.fld = r.bs - 2*r.m;
         r.sw  = r.fld / this.w;
         r.sh  = r.fld / this.h;
+        r.sr = r.sh * .10; ///
         return r;
     }
 
@@ -146,6 +162,7 @@ class Game {
     }
     event_mouse(event, x, y) {
         if (event == Game.MOUSE_DOWN) {
+            this.board.mouse(this.gfx, x, y);
         }
     }
 
