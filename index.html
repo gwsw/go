@@ -107,7 +107,7 @@ class Board {
         if (bx >= xm && bx < xm + sz.bs || by >= ym && by < ym + sz.bs) {
             const x = Math.floor((bx - xm + (sz.sw/2)) / sz.sw);
             const y = Math.floor((by - ym + (sz.sh/2)) / sz.sh);
-            if (x >= 0 && x <= this.w && y >= 0 && y <= this.h) {
+            if (x >= 0 && x < this.w && y >= 0 && y < this.h) {
                 const sx = this.get_stone(x, y);
                 if (sx < 0) {
                     this.add_stone(x, y, this.curr_side);
