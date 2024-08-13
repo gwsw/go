@@ -24,6 +24,7 @@ var config = {
     color_board            : "d19d00",
     color_line             : "000000",
     color_panel_bg         : "203050",
+    color_panel_side_bg    : "a0a000",
     color_white            : "f0f0f0",
 };
 
@@ -40,8 +41,11 @@ class Stone {
         const x = xm + this.x * sz.sw;
         const y = ym + this.y * sz.sh;
         const r = sz.sh * config.stone_frac;
-        const color = Stone.color(this.side);
-        const ocolor = Stone.color(1 - this.side);
+        Stone.draw_at(gfx, x, y, r, this.side);
+    }
+    static draw_at(gfx, x, y, r, side) {
+        const color = Stone.color(side);
+        const ocolor = Stone.color(1 - side);
         gfx.draw_circle(x, y, r, ocolor);
         gfx.draw_circle(x, y, r-1, color);
     }
@@ -56,8 +60,6 @@ class Board {
         this.w = w;
         this.h = h;
         this.stones = [];
-        this.add_stone(0, 0, 0);
-        this.add_stone(2, 3, 1);
         this.curr_side = 0;
     }
     add_stone(x, y, side) {
@@ -103,8 +105,9 @@ class Board {
             } else {
                 this.del_stone(stone);
             }
-            this.draw(gfx);
+            return true;
         }
+        return false;
     }
     size_up(gfx) {
         const cw = gfx.ctx.canvas.width;
@@ -138,8 +141,17 @@ class Panel {
         const side = this.board.curr_side;
         const sz = this.size_up(gfx);
         gfx.draw_rect(sz.x, sz.y, sz.w, sz.h, config.color_panel_bg);
+
+        const sm = 8;
+        const sr = sz.side_h * .4;
+        const sx = sz.side_x + sr * 1.1;
+        const sy = sz.side_y + sz.side_h/2;
+        gfx.draw_rect(sz.side_x, sz.side_y, sz.side_w, sz.side_h, config.color_panel_side_bg);
+        Stone.draw_at(gfx, sx, sy, sr, this.board.curr_side);
+        gfx.draw_text(sz.side_x + 2*sr, sz.side_y, (this.board.curr_side == 0) ? "BLACK" : "WHITE", config.color_black);
     }
     mouse(gfx, x, y) {
+        return false;
     }
     size_up(gfx) {
         const cw = gfx.ctx.canvas.width;
@@ -157,6 +169,10 @@ class Panel {
             r.x = bsz.xm + bsz.m + bsz.bs + 10; ///
             r.y = bsz.ym;
         }
+        r.side_x = r.x + 10; ///
+        r.side_y = r.y + 10; ///
+        r.side_w = 150;  ////
+        r.side_h = 42; ////
         return r;
     }
 };
@@ -204,8 +220,8 @@ class Game {
     }
     event_mouse(event, x, y) {
         if (event == Game.MOUSE_DOWN) {
-            this.board.mouse(this.gfx, x, y);
-            this.panel.mouse(this.gfx, x, y);
+            if (this.board.mouse(this.gfx, x, y) || this.panel.mouse(this.gfx, x, y))
+                this.draw();
         }
     }
 
