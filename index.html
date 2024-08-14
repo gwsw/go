@@ -16,7 +16,7 @@
 var _game = null;
 
 var config = {
-    line_thick             : 1,
+    grid_thick             : 1,
     stone_frac             : .5,
 
     color_active           : "80c000",
@@ -40,16 +40,22 @@ class ActiveRect {
         this.xb = xb;
         this.yb = yb;
         this.set_color(bg_color, border_color);
+        this.set_text(null);
     }
     set_color(bg_color, border_color = null) {
         this.bg_color = bg_color;
         this.border_color = border_color;
+    }
+    set_text(text) {
+        this.text = text;
     }
     is_in(x, y) {
         return x >= this.x && x < this.x + this.w && y >= this.y && y < this.y + this.h;
     }
     draw(gfx) {
         gfx.draw_outlined_rect(this.x, this.y, this.w, this.h, this.xb, this.yb, this.bg_color, this.border_color);
+        if (this.text != null)
+            gfx.draw_centered_text(this.x, this.y, this.w, this.text, config.color_black);
     }
 };
 
@@ -93,6 +99,13 @@ class Board {
     }
     add_stone(x, y, side) {
         this.stones.push(new Stone(x, y, side));
+        for (const d of [[-1,0],[+1,0],[0,-1],[0,+1]]) {
+            const tx = x + d[0];
+            const ty = y + d[1];
+            const group = this.dead_group(tx, ty);
+            if (group != null)
+                this.del_group(group);
+        }
     }
     del_stone(sx) {
         this.stones.splice(sx, 1);
@@ -103,12 +116,52 @@ class Board {
     num_stones() {
         return this.stones.length;
     }
-    get_stone(x, y) {
-        for (let sx = 0; sx < this.stones.length; ++sx) {
-            if (this.stones[sx].x == x && this.stones[sx].y == y)
+    del_group(group) {
+        const ss = [];
+        for (const stone of group) {
+            const sx = this.get_stone(stone.x, stone.y);
+            ss.push(sx);
+        }
+        ss.sort(function(a,b) { return b-a; });
+        for (let i = 0; i < ss.length; ++i)
+            this.del_stone(ss[i]);
+    }
+    add_dead(list, x, y) {
+        const sx = this.get_stone(x, y);
+        if (sx < 0) return null;
+        list.push(this.stones[sx]);
+        const side = this.stones[sx].side;
+        for (const d of [[-1,0],[+1,0],[0,-1],[0,+1]]) {
+            const tx = x + d[0];
+            const ty = y + d[1];
+            if (tx >= 0 && tx <= this.w && ty >= 0 && ty <= this.h) {
+                const tsx = this.get_stone(tx, ty);
+                if (tsx < 0) // found a liberty
+                    return null;
+                if (this.stones[tsx].side == side && !this.in_list(list, tx, ty)) {
+                    if (this.add_dead(list, tx, ty) == null)
+                        return null;
+                }
+            }
+        }
+        return list;
+    }
+    dead_group(x, y) {
+        const group = [];
+        return this.add_dead(group, x, y);
+    }
+    static get_list_stone(list, x, y) {
+        for (let sx = 0; sx < list.length; ++sx) {
+            if (list[sx].x == x && list[sx].y == y)
                 return sx;
         }
         return -1;
+    }
+    get_stone(x, y) {
+        return Board.get_list_stone(this.stones, x, y);
+    }
+    in_list(list, x, y) {
+        return Board.get_list_stone(list, x, y) >= 0;
     }
     draw(gfx) {
         const sz = this.size_up(gfx);
@@ -118,10 +171,10 @@ class Board {
         const xm = sz.xm + sz.m;
         const ym = sz.ym + sz.m;
         for (let xn = 0; xn < this.w; ++xn) {
-            gfx.draw_rect(xm + sz.sw * xn, ym, config.line_thick, sz.fld, config.color_line);
+            gfx.draw_rect(xm + sz.sw * xn, ym, config.grid_thick, sz.fld, config.color_line);
         }
         for (let yn = 0; yn < this.h; ++yn) {
-            gfx.draw_rect(xm, ym + sz.sh * yn, sz.fld, config.line_thick, config.color_line);
+            gfx.draw_rect(xm, ym + sz.sh * yn, sz.fld, config.grid_thick, config.color_line);
         }
         // Draw stars.
         const se = (this.w < 11 || this.h < 11) ? 2 : 3;
@@ -217,11 +270,8 @@ class Panel {
         else if (this.board.w == 19 && this.board.h == 19)
             sz.bd19.set_color(config.color_active);
         sz.bd9.draw(gfx);
-        gfx.draw_centered_text(sz.bd9.x, sz.bd9.y, sz.bd9.w, "9x9", config.color_black);
         sz.bd13.draw(gfx);
-        gfx.draw_centered_text(sz.bd13.x, sz.bd9.y, sz.bd13.w, "13x13", config.color_black);
         sz.bd19.draw(gfx);
-        gfx.draw_centered_text(sz.bd19.x, sz.bd9.y, sz.bd19.w, "19x19", config.color_black);
     }
     mouse(gfx, x, y) {
         const sz = this.size_up(gfx);
@@ -268,8 +318,11 @@ class Panel {
         const bdy = r.side.y + r.side.h + vsp;
         const bdw = 80;
         r.bd9 = new ActiveRect(x + hsp, bdy, bdw, bh, config.color_inactive);
+        r.bd9.set_text("9x9");
         r.bd13 = new ActiveRect(r.bd9.x + r.bd9.w + hsp, bdy, bdw, bh, config.color_inactive);
+        r.bd13.set_text("13x13");
         r.bd19 = new ActiveRect(r.bd13.x + r.bd13.w + hsp, bdy, bdw, bh, config.color_inactive);
+        r.bd19.set_text("19x19");
         return r;
     }
 };
@@ -280,7 +333,6 @@ class Game {
         this.gfx = gfx;
         this.board = new Board(w, h);
         this.panel = new Panel(this.board);
-        this.playing = true;
     }
     resize() {
         this.gfx.set_font_size(canvas.height*.040);
@@ -291,16 +343,6 @@ class Game {
         this.board.draw(this.gfx);
         this.panel.draw(this.gfx);
     }
-    event_keystroke(key, down) {
-        if (!down) return;
-        switch (key) {
-        case 'ArrowDown':
-        case 'ArrowUp':
-        case 'ArrowRight':
-        case 'ArrowLeft':
-            break;
-        }
-    }
     event_mouse(event, x, y) {
         if (event == Game.MOUSE_DOWN) {
             if (this.board.mouse(this.gfx, x, y) || this.panel.mouse(this.gfx, x, y))
@@ -308,8 +350,6 @@ class Game {
         }
     }
 
-    static _event_keydown(e) { if (_game != null) _game.event_keystroke(e.key, true); }
-    static _event_keyup(e) { if (_game != null) _game.event_keystroke(e.key, false); }
     static _event_mousedown(e) { if (_game != null) _game.event_mouse(Game.MOUSE_DOWN, e.offsetX, e.offsetY); }
     static _event_mouseup(e) { if (_game != null) _game.event_mouse(Game.MOUSE_UP, e.offsetX, e.offsetY); }
     static _event_mousemove(e) { if (_game != null) _game.event_mouse(Game.MOUSE_MOVE, e.offsetX, e.offsetY); }
@@ -343,8 +383,6 @@ function main() {
     const canvas = canvas_to_window();
     const gfx = new Graphics(canvas.getContext("2d"), canvas.height*.040);
     _game = new Game(gfx, 19, 19);
-    document.addEventListener('keyup', Game._event_keyup);
-    document.addEventListener('keydown', Game._event_keydown);
     document.addEventListener('mousedown', Game._event_mousedown);
     document.addEventListener('mouseup', Game._event_mouseup);
     document.addEventListener('mousemove', Game._event_mousemove);
