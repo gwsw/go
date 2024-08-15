@@ -17,7 +17,7 @@ var _game = null;
 
 var config = {
     grid_thick             : 1,
-    stone_frac             : .5,
+    stone_frac             : 1,
 
     color_active           : "80c000",
     color_bg               : "103020",
@@ -71,7 +71,7 @@ class Stone {
         const ym = sz.ym + sz.m;
         const x = xm + this.x * sz.sw;
         const y = ym + this.y * sz.sh;
-        const r = sz.sh * config.stone_frac;
+        const r = sz.sh * config.stone_frac / 2;
         Stone.draw_at(gfx, x, y, r, this.side);
     }
     static draw_at(gfx, x, y, r, side) {
@@ -159,7 +159,7 @@ class Board {
         for (const d of [[-1,0],[+1,0],[0,-1],[0,+1]]) {
             const tx = x + d[0];
             const ty = y + d[1];
-            if (tx >= 0 && tx <= this.w && ty >= 0 && ty <= this.h)
+            if (tx >= 0 && tx < this.w && ty >= 0 && ty < this.h)
                 list.push({x:tx, y:ty});
         }
         return list;
