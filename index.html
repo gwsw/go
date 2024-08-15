@@ -99,10 +99,8 @@ class Board {
     }
     add_stone(x, y, side) {
         this.stones.push(new Stone(x, y, side));
-        for (const d of [[-1,0],[+1,0],[0,-1],[0,+1]]) {
-            const tx = x + d[0];
-            const ty = y + d[1];
-            const group = this.dead_group(tx, ty);
+        for (const n of this.neighbors(x, y)) {
+            const group = this.dead_group(n.x, n.y);
             if (group != null)
                 this.del_group(group);
         }
@@ -131,17 +129,13 @@ class Board {
         if (sx < 0) return null;
         list.push(this.stones[sx]);
         const side = this.stones[sx].side;
-        for (const d of [[-1,0],[+1,0],[0,-1],[0,+1]]) {
-            const tx = x + d[0];
-            const ty = y + d[1];
-            if (tx >= 0 && tx <= this.w && ty >= 0 && ty <= this.h) {
-                const tsx = this.get_stone(tx, ty);
-                if (tsx < 0) // found a liberty
+        for (const n of this.neighbors(x, y)) {
+            const tsx = this.get_stone(n.x, n.y);
+            if (tsx < 0) // found a liberty
+                return null;
+            if (this.stones[tsx].side == side && Board.get_list_stone(list, n.x, n.y) < 0) {
+                if (this.add_dead(list, n.x, n.y) == null)
                     return null;
-                if (this.stones[tsx].side == side && !this.in_list(list, tx, ty)) {
-                    if (this.add_dead(list, tx, ty) == null)
-                        return null;
-                }
             }
         }
         return list;
@@ -160,8 +154,15 @@ class Board {
     get_stone(x, y) {
         return Board.get_list_stone(this.stones, x, y);
     }
-    in_list(list, x, y) {
-        return Board.get_list_stone(list, x, y) >= 0;
+    neighbors(x, y) {
+        const list = [];
+        for (const d of [[-1,0],[+1,0],[0,-1],[0,+1]]) {
+            const tx = x + d[0];
+            const ty = y + d[1];
+            if (tx >= 0 && tx <= this.w && ty >= 0 && ty <= this.h)
+                list.push({x:tx, y:ty});
+        }
+        return list;
     }
     draw(gfx) {
         const sz = this.size_up(gfx);
