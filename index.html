@@ -99,10 +99,10 @@ class Board {
     }
     add_stone(x, y, side) {
         this.stones.push(new Stone(x, y, side));
-        for (const n of this.neighbors(x, y)) {
-            const group = this.dead_group(n.x, n.y);
+        for (const n of this.#neighbors(x, y)) {
+            const group = this.#dead_group(n.x, n.y);
             if (group != null)
-                this.del_group(group);
+                this.#del_group(group);
         }
     }
     del_stone(sx) {
@@ -114,47 +114,47 @@ class Board {
     num_stones() {
         return this.stones.length;
     }
-    del_group(group) {
+    #del_group(group) {
         const ss = [];
         for (const stone of group) {
-            const sx = this.get_stone(stone.x, stone.y);
+            const sx = this.#get_stone(stone.x, stone.y);
             ss.push(sx);
         }
         ss.sort(function(a,b) { return b-a; });
         for (let i = 0; i < ss.length; ++i)
             this.del_stone(ss[i]);
     }
-    add_dead(list, x, y) {
-        const sx = this.get_stone(x, y);
+    #add_dead(list, x, y) {
+        const sx = this.#get_stone(x, y);
         if (sx < 0) return null;
         list.push(this.stones[sx]);
         const side = this.stones[sx].side;
-        for (const n of this.neighbors(x, y)) {
-            const tsx = this.get_stone(n.x, n.y);
+        for (const n of this.#neighbors(x, y)) {
+            const tsx = this.#get_stone(n.x, n.y);
             if (tsx < 0) // found a liberty
                 return null;
-            if (this.stones[tsx].side == side && Board.get_list_stone(list, n.x, n.y) < 0) {
-                if (this.add_dead(list, n.x, n.y) == null)
+            if (this.stones[tsx].side == side && Board.#get_list_stone(list, n.x, n.y) < 0) {
+                if (this.#add_dead(list, n.x, n.y) == null)
                     return null;
             }
         }
         return list;
     }
-    dead_group(x, y) {
+    #dead_group(x, y) {
         const group = [];
-        return this.add_dead(group, x, y);
+        return this.#add_dead(group, x, y);
     }
-    static get_list_stone(list, x, y) {
+    static #get_list_stone(list, x, y) {
         for (let sx = 0; sx < list.length; ++sx) {
             if (list[sx].x == x && list[sx].y == y)
                 return sx;
         }
         return -1;
     }
-    get_stone(x, y) {
-        return Board.get_list_stone(this.stones, x, y);
+    #get_stone(x, y) {
+        return Board.#get_list_stone(this.stones, x, y);
     }
-    neighbors(x, y) {
+    #neighbors(x, y) {
         const list = [];
         for (const d of [[-1,0],[+1,0],[0,-1],[0,+1]]) {
             const tx = x + d[0];
@@ -181,27 +181,27 @@ class Board {
         const se = (this.w < 11 || this.h < 11) ? 2 : 3;
         const w2 = (this.w % 2) ? Math.floor(this.w / 2) : 0;
         const h2 = (this.h % 2) ? Math.floor(this.h / 2) : 0;
-        this.draw_star(gfx, sz, se, se);
-        this.draw_star(gfx, sz, se, this.h - se - 1);
-        this.draw_star(gfx, sz, this.w - se - 1, se);
-        this.draw_star(gfx, sz, this.w - se - 1, this.h - se - 1);
+        this.#draw_star(gfx, sz, se, se);
+        this.#draw_star(gfx, sz, se, this.h - se - 1);
+        this.#draw_star(gfx, sz, this.w - se - 1, se);
+        this.#draw_star(gfx, sz, this.w - se - 1, this.h - se - 1);
         if (w2 && h2) { // center of board
-            this.draw_star(gfx, sz, w2, h2);
+            this.#draw_star(gfx, sz, w2, h2);
         }
         if (w2 && this.w > 13) {
-            this.draw_star(gfx, sz, w2, se);
-            this.draw_star(gfx, sz, w2, this.h - se - 1);
+            this.#draw_star(gfx, sz, w2, se);
+            this.#draw_star(gfx, sz, w2, this.h - se - 1);
         }
         if (h2 && this.h > 13) {
-            this.draw_star(gfx, sz, se, h2);
-            this.draw_star(gfx, sz, this.w - se - 1, h2);
+            this.#draw_star(gfx, sz, se, h2);
+            this.#draw_star(gfx, sz, this.w - se - 1, h2);
         }
         // Draw stones.
         for (const stone of this.stones) {
             stone.draw(gfx, sz);
         }
     }
-    draw_star(gfx, sz, x, y) {
+    #draw_star(gfx, sz, x, y) {
         gfx.draw_circle(sz.xm + sz.m + sz.sw * x, sz.ym + sz.m + sz.sh * y, sz.sr, config.color_line);
     }
     mouse(gfx, bx, by) {
@@ -212,7 +212,7 @@ class Board {
             const x = Math.floor((bx - xm + (sz.sw/2)) / sz.sw);
             const y = Math.floor((by - ym + (sz.sh/2)) / sz.sh);
             if (x >= 0 && x < this.w && y >= 0 && y < this.h) {
-                const sx = this.get_stone(x, y);
+                const sx = this.#get_stone(x, y);
                 if (sx < 0) {
                     this.add_stone(x, y, this.curr_side);
                     this.curr_side = 1 - this.curr_side;
