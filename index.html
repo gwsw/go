@@ -18,6 +18,7 @@ var _game = null;
 var config = {
     grid_thick             : 1,
     stone_frac             : 1,
+    terr_frac              : .4,
 
     color_active           : "80c000",
     color_bg               : "103020",
@@ -29,6 +30,15 @@ var config = {
     color_panel_side_bg    : "80c000",
     color_white            : "f0f0f0",
 };
+
+const SIDE_BLACK = 0;
+const SIDE_WHITE = 1;
+const SIDE_NEUTRAL = 2;
+const SIDE_UNKNOWN = -1;
+
+function other_side(side) {
+    return 1 - side;
+}
 
 // --------------------------------------------------------------------
 class ActiveRect {
@@ -76,12 +86,12 @@ class Stone {
     }
     static draw_at(gfx, x, y, r, side) {
         const color = Stone.color(side);
-        const ocolor = Stone.color(1 - side);
+        const ocolor = Stone.color(other_side(side));
         gfx.draw_circle(x, y, r, ocolor);
         gfx.draw_circle(x, y, r-1, color);
     }
     static color(side) {
-        return (side == 0) ? config.color_black : config.color_white;
+        return (side == SIDE_BLACK) ? config.color_black : config.color_white;
     }
 };
 
@@ -89,7 +99,7 @@ class Stone {
 class Board {
     constructor(w, h) {
         this.stones = [];
-        this.curr_side = 0;
+        this.curr_side = SIDE_BLACK;
         this.show_terr = false;
         this.set_size(w, h);
     }
@@ -153,7 +163,47 @@ class Board {
         return -1;
     }
     #get_terr() {
-        return { black: [], white: [] }; //@@
+        let tr = { black: [], white: [], neutral: [], curr: [], curr_side: SIDE_UNKNOWN };
+        for (let x = 0; x < this.w; ++x) {
+            for (let y = 0; y < this.h; ++y) {
+                this.#add_terr(tr, x, y);
+                const curr = tr.curr;
+                tr.curr = [];
+                let app = null;
+                if (tr.curr_side == SIDE_BLACK)
+                    app = tr.black;
+                else if (tr.curr_side == SIDE_WHITE)
+                    app = tr.white;
+                else if (tr.curr_side == SIDE_NEUTRAL)
+                    app = tr.neutral;
+                if (app != null) {
+                    for (const n of curr)
+                        app.push(n);
+                }
+                tr.curr_side = SIDE_UNKNOWN;
+            }
+        }
+        return { black: tr.black, white: tr.white };
+    }
+    #add_terr(tr, x, y) {
+        if (Board.#get_list_stone(tr.curr, x, y) >= 0 ||
+            Board.#get_list_stone(tr.black, x, y) >= 0 ||
+            Board.#get_list_stone(tr.white, x, y) >= 0 ||
+            Board.#get_list_stone(tr.neutral, x, y) >= 0)
+            return;
+        const sx = this.#get_stone(x, y);
+        if (sx < 0) {
+            tr.curr.push({x:x, y:y});
+            for (const n of this.#neighbors(x, y)) {
+                this.#add_terr(tr, n.x, n.y);
+            }
+        } else {
+            const side = this.stones[sx].side;
+            if (tr.curr_side == SIDE_UNKNOWN)
+                tr.curr_side = side;
+            else if (tr.curr_side != SIDE_NEUTRAL && tr.curr_side != side)
+                tr.curr_side = SIDE_NEUTRAL;
+        }
     }
     #get_stone(x, y) {
         return Board.#get_list_stone(this.stones, x, y);
@@ -220,6 +270,8 @@ class Board {
         gfx.draw_circle(sz.xm + sz.m + sz.sw * x, sz.ym + sz.m + sz.sh * y, sz.sr, config.color_line);
     }
     #draw_terr(gfx, sz, x, y, color) {
+        const s = sz.sh * config.terr_frac;
+        gfx.draw_rect(sz.xm + sz.m + sz.sw * x - s/2, sz.ym + sz.m + sz.sh * y - s/2, s, s, color);
     }
     mouse(gfx, bx, by) {
         const sz = this.size_up(gfx);
@@ -232,7 +284,7 @@ class Board {
                 const sx = this.#get_stone(x, y);
                 if (sx < 0) {
                     this.add_stone(x, y, this.curr_side);
-                    this.curr_side = 1 - this.curr_side;
+                    this.curr_side = other_side(this.curr_side);
                 } else {
                     this.del_stone(sx);
                 }
@@ -287,7 +339,7 @@ class Panel {
         }
         sz.terr.draw(gfx);
         gfx.draw_text(sz.side.x + 3*sr, sz.side.y + (sz.side.h - gfx.font_height) / 2,
-            (this.board.curr_side == 0) ? "BLACK" : "WHITE", config.color_black);
+            (this.board.curr_side == SIDE_BLACK) ? "BLACK" : "WHITE", config.color_black);
         if (this.board.w == 9 && this.board.h == 9)
             sz.bd9.set_color(config.color_active);
         else if (this.board.w == 13 && this.board.h == 13)
@@ -301,7 +353,7 @@ class Panel {
     mouse(gfx, x, y) {
         const sz = this.size_up(gfx);
         if (sz.side.is_in(x, y)) {
-            this.board.curr_side = 1 - this.board.curr_side;
+            this.board.curr_side = other_side(this.board.curr_side);
             return true;
         }
         if (sz.terr.is_in(x, y)) {
