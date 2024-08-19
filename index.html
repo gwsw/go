@@ -32,7 +32,7 @@ var config = {
 
 // --------------------------------------------------------------------
 class ActiveRect {
-    constructor(x, y, w, h, bg_color, xb = 0, yb = 0, border_color = null) {
+    constructor(x, y, w, h, bg_color, text = "", xb = 0, yb = 0, border_color = null) {
         this.x = x;
         this.y = y;
         this.w = w;
@@ -40,7 +40,7 @@ class ActiveRect {
         this.xb = xb;
         this.yb = yb;
         this.set_color(bg_color, border_color);
-        this.set_text(null);
+        this.set_text(text);
     }
     set_color(bg_color, border_color = null) {
         this.bg_color = bg_color;
@@ -324,16 +324,12 @@ class Panel {
         const bh = 42;
         r.panel = new ActiveRect(x, y, w, h, config.color_panel_bg);
         r.side = new ActiveRect(x + hsp, y + vsp, 150, bh, config.color_panel_side_bg);
-        r.terr = new ActiveRect(x + hsp, r.side.y + r.side.h + vsp, 200, bh, config.color_inactive);
-        r.terr.set_text("Territory");
+        r.terr = new ActiveRect(x + hsp, r.side.y + r.side.h + vsp, 200, bh, config.color_inactive, "Territory");
         const bdy = r.terr.y + r.terr.h + vsp;
         const bdw = 80;
-        r.bd9 = new ActiveRect(x + hsp, bdy, bdw, bh, config.color_inactive);
-        r.bd9.set_text("9x9");
-        r.bd13 = new ActiveRect(r.bd9.x + r.bd9.w + hsp, bdy, bdw, bh, config.color_inactive);
-        r.bd13.set_text("13x13");
-        r.bd19 = new ActiveRect(r.bd13.x + r.bd13.w + hsp, bdy, bdw, bh, config.color_inactive);
-        r.bd19.set_text("19x19");
+        r.bd9 = new ActiveRect(x + hsp, bdy, bdw, bh, config.color_inactive, "9x9");
+        r.bd13 = new ActiveRect(r.bd9.x + r.bd9.w + hsp, bdy, bdw, bh, config.color_inactive, "13x13");
+        r.bd19 = new ActiveRect(r.bd13.x + r.bd13.w + hsp, bdy, bdw, bh, config.color_inactive, "19x19");
         return r;
     }
 };
