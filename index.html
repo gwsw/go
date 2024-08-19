@@ -90,6 +90,7 @@ class Board {
     constructor(w, h) {
         this.stones = [];
         this.curr_side = 0;
+        this.show_terr = false;
         this.set_size(w, h);
     }
     set_size(w, h) {
@@ -254,7 +255,7 @@ class Panel {
     draw(gfx) {
         const side = this.board.curr_side;
         const sz = this.size_up(gfx);
-        sz.rect.draw(gfx);
+        sz.panel.draw(gfx);
 
         const sm = 8;
         const sr = sz.side.h * .4;
@@ -262,6 +263,9 @@ class Panel {
         const sy = sz.side.y + sz.side.h/2;
         sz.side.draw(gfx);
         Stone.draw_at(gfx, sx, sy, sr, this.board.curr_side);
+        if (this.board.show_terr)
+            sz.terr.set_color(config.color_active);
+        sz.terr.draw(gfx);
         gfx.draw_text(sz.side.x + 3*sr, sz.side.y + (sz.side.h - gfx.font_height) / 2,
             (this.board.curr_side == 0) ? "BLACK" : "WHITE", config.color_black);
         if (this.board.w == 9 && this.board.h == 9)
@@ -278,6 +282,10 @@ class Panel {
         const sz = this.size_up(gfx);
         if (sz.side.is_in(x, y)) {
             this.board.curr_side = 1 - this.board.curr_side;
+            return true;
+        }
+        if (sz.terr.is_in(x, y)) {
+            this.board.show_terr = !this.board.show_terr;
             return true;
         }
         if (sz.bd9.is_in(x, y)) {
@@ -314,9 +322,11 @@ class Panel {
         const vsp = 8;
         const hsp = 12;
         const bh = 42;
-        r.rect = new ActiveRect(x, y, w, h, config.color_panel_bg);
+        r.panel = new ActiveRect(x, y, w, h, config.color_panel_bg);
         r.side = new ActiveRect(x + hsp, y + vsp, 150, bh, config.color_panel_side_bg);
-        const bdy = r.side.y + r.side.h + vsp;
+        r.terr = new ActiveRect(x + hsp, r.side.y + r.side.h + vsp, 200, bh, config.color_inactive);
+        r.terr.set_text("Territory");
+        const bdy = r.terr.y + r.terr.h + vsp;
         const bdw = 80;
         r.bd9 = new ActiveRect(x + hsp, bdy, bdw, bh, config.color_inactive);
         r.bd9.set_text("9x9");
