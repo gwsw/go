@@ -163,34 +163,27 @@ class Board {
         return -1;
     }
     #get_terr() {
-        let tr = { black: [], white: [], neutral: [], curr: [], curr_side: SIDE_UNKNOWN };
+        let tr = { points: [ [], [], [] ], curr: [], curr_side: SIDE_UNKNOWN };
         for (let x = 0; x < this.w; ++x) {
             for (let y = 0; y < this.h; ++y) {
                 this.#add_terr(tr, x, y);
-                const curr = tr.curr;
-                tr.curr = [];
-                let app = null;
-                if (tr.curr_side == SIDE_BLACK)
-                    app = tr.black;
-                else if (tr.curr_side == SIDE_WHITE)
-                    app = tr.white;
-                else if (tr.curr_side == SIDE_NEUTRAL)
-                    app = tr.neutral;
-                if (app != null) {
-                    for (const n of curr)
-                        app.push(n);
+                if (tr.curr_side != SIDE_UNKNOWN) {
+                    const pts = tr.points[tr.curr_side];
+                    for (const n of tr.curr)
+                        pts.push(n);
                 }
+                tr.curr = [];
                 tr.curr_side = SIDE_UNKNOWN;
             }
         }
-        return { black: tr.black, white: tr.white };
+        return { black: tr.points[SIDE_BLACK], white: tr.points[SIDE_WHITE] };
     }
     #add_terr(tr, x, y) {
-        if (Board.#get_list_stone(tr.curr, x, y) >= 0 ||
-            Board.#get_list_stone(tr.black, x, y) >= 0 ||
-            Board.#get_list_stone(tr.white, x, y) >= 0 ||
-            Board.#get_list_stone(tr.neutral, x, y) >= 0)
+        if (Board.#get_list_stone(tr.curr, x, y) >= 0)
             return;
+        for (let s = SIDE_BLACK; s <= SIDE_NEUTRAL; ++s)
+            if (Board.#get_list_stone(tr.points[s], x, y) >= 0)
+                return;
         const sx = this.#get_stone(x, y);
         if (sx < 0) {
             tr.curr.push({x:x, y:y});
