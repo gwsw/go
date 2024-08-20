@@ -8,6 +8,7 @@
 <canvas id="canvas" width="1" height="1" style="font-family:Arial"></canvas>
 
 <script src="../jlib/gfx.js"></script>
+<script src="../goscorer/javascript/goscorer.js"></script>
 
 <script>
 
@@ -24,10 +25,12 @@ var config = {
     color_bg               : "103020",
     color_black            : "101010",
     color_board            : "d19d00",
+    color_dead             : "ff0000",
     color_inactive         : "c04000",
+    color_info             : "e0e0a0",
     color_line             : "000000",
     color_panel_bg         : "203050",
-    color_panel_side_bg    : "80c000",
+    color_panel_side_bg    : "e0e0a0",
     color_white            : "f0f0f0",
 };
 
@@ -75,14 +78,26 @@ class Stone {
         this.side = side;
         this.x = x;
         this.y = y;
+        this.is_dead = false;
     }
-    draw(gfx, sz) {
+    set_dead(dead) {
+        this.is_dead = dead;
+    }
+    draw(gfx, sz, draw_dead) {
         const xm = sz.xm + sz.m;
         const ym = sz.ym + sz.m;
         const x = xm + this.x * sz.sw;
         const y = ym + this.y * sz.sh;
         const r = sz.sh * config.stone_frac / 2;
         Stone.draw_at(gfx, x, y, r, this.side);
+        if (draw_dead && this.is_dead) {
+            const xl = r / Math.sqrt(2);
+            const xw = r / 30;
+            const pts1 = [ new Point(-xl+xw,xl+xw), new Point(xl+xw,-xl+xw), new Point(xl-xw,-xl-xw), new Point(-xl-xw,xl-xw) ];
+            const pts2 = [ new Point(xl-xw,xl+xw), new Point(-xl-xw,-xl+xw), new Point(-xl+xw,-xl-xw), new Point(xl+xw,xl-xw) ];
+            gfx.draw_poly(pts1, x, y, 0, 1, config.color_dead, config.color_dead);
+            gfx.draw_poly(pts2, x, y, 0, 1, config.color_dead, config.color_dead);
+        }
     }
     static draw_at(gfx, x, y, r, side) {
         const color = Stone.color(side);
@@ -101,6 +116,7 @@ class Board {
         this.stones = [];
         this.curr_side = SIDE_BLACK;
         this.show_terr = false;
+        this.marking_dead = false;
         this.set_size(w, h);
     }
     set_size(w, h) {
@@ -124,6 +140,16 @@ class Board {
     }
     num_stones() {
         return this.stones.length;
+    }
+    mark_dead(x, y, dead) {
+        const sx = this.#get_stone(x, y);
+        if (sx < 0) return;
+        this.stones[sx].is_dead = dead;
+    }
+    is_dead(x, y) {
+        const sx = this.#get_stone(x, y);
+        if (sx < 0) return false;
+        return this.stones[sx].is_dead;
     }
     #del_group(group) {
         const ss = [];
@@ -163,40 +189,36 @@ class Board {
         return -1;
     }
     #get_terr() {
-        let tr = { points: [ [], [], [] ], curr: [], curr_side: SIDE_UNKNOWN };
-        for (let x = 0; x < this.w; ++x) {
-            for (let y = 0; y < this.h; ++y) {
-                this.#add_terr(tr, x, y);
-                if (tr.curr_side != SIDE_UNKNOWN) {
-                    const pts = tr.points[tr.curr_side];
-                    for (const n of tr.curr)
-                        pts.push(n);
+        const stones = Array.from({length: this.h}, () => Array.from({length: this.w}, () => EMPTY));
+        const dead   = Array.from({length: this.h}, () => Array.from({length: this.w}, () => false));
+        for (let y = 0; y < this.h; y++) {
+            for (let x = 0; x < this.w; x++) {
+                const sx = this.#get_stone(x, y);
+                if (sx >= 0) {
+                    const stone = this.stones[sx];
+                    if (stone.side == SIDE_BLACK)
+                        stones[y][x] = BLACK;
+                    else if (stone.side == SIDE_WHITE)
+                        stones[y][x] = WHITE;
+                    if (this.is_dead(x, y))
+                        dead[y][x] = true;
                 }
-                tr.curr = [];
-                tr.curr_side = SIDE_UNKNOWN;
             }
         }
-        return { black: tr.points[SIDE_BLACK], white: tr.points[SIDE_WHITE] };
-    }
-    #add_terr(tr, x, y) {
-        if (Board.#get_list_stone(tr.curr, x, y) >= 0)
-            return;
-        for (let s = SIDE_BLACK; s <= SIDE_NEUTRAL; ++s)
-            if (Board.#get_list_stone(tr.points[s], x, y) >= 0)
-                return;
-        const sx = this.#get_stone(x, y);
-        if (sx < 0) {
-            tr.curr.push({x:x, y:y});
-            for (const n of this.#neighbors(x, y)) {
-                this.#add_terr(tr, n.x, n.y);
+        const scoring = territoryScoring(stones, dead);
+        const r = { black:[], white:[] };
+        for (let y = 0; y < this.h; y++) {
+            for (let x = 0; x < this.w; x++) {
+                if (scoring[y][x].isTerritoryFor == BLACK)
+                    r.black.push({x:x, y:y});
+                else if (scoring[y][x].isTerritoryFor == WHITE)
+                    r.white.push({x:x, y:y});
             }
-        } else {
-            const side = this.stones[sx].side;
-            if (tr.curr_side == SIDE_UNKNOWN)
-                tr.curr_side = side;
-            else if (tr.curr_side != SIDE_NEUTRAL && tr.curr_side != side)
-                tr.curr_side = SIDE_NEUTRAL;
         }
+        const final = finalTerritoryScore(stones, dead, 0, 0, 6.5);
+        r.black_score = final.black;
+        r.white_score = final.white;
+        return r;
     }
     #get_stone(x, y) {
         return Board.#get_list_stone(this.stones, x, y);
@@ -256,7 +278,7 @@ class Board {
         }
         // Draw stones.
         for (const stone of this.stones) {
-            stone.draw(gfx, sz);
+            stone.draw(gfx, sz, this.show_terr);
         }
     }
     #draw_star(gfx, sz, x, y) {
@@ -275,11 +297,17 @@ class Board {
             const y = Math.floor((by - ym + (sz.sh/2)) / sz.sh);
             if (x >= 0 && x < this.w && y >= 0 && y < this.h) {
                 const sx = this.#get_stone(x, y);
-                if (sx < 0) {
-                    this.add_stone(x, y, this.curr_side);
-                    this.curr_side = other_side(this.curr_side);
+                if (this.marking_dead) {
+                    if (sx >= 0) {
+                        this.mark_dead(x, y, !this.is_dead(x, y));
+                    }
                 } else {
-                    this.del_stone(sx);
+                    if (sx < 0) {
+                        this.add_stone(x, y, this.curr_side);
+                        this.curr_side = other_side(this.curr_side);
+                    } else {
+                        this.del_stone(sx);
+                    }
                 }
                 return true;
             }
@@ -326,11 +354,16 @@ class Panel {
         Stone.draw_at(gfx, sx, sy, sr, this.board.curr_side);
         if (this.board.show_terr) {
             sz.terr.set_color(config.color_active);
-            const tmsg = "W:" + this.board.terr.white.length.toString() + " B:" + this.board.terr.black.length.toString();
+            const tmsg = "W:" + this.board.terr.white_score.toString() + " B:" + this.board.terr.black_score.toString();
             sz.terr_sum.set_text(tmsg);
             sz.terr_sum.draw(gfx);
         }
         sz.terr.draw(gfx);
+        if (this.board.show_terr) {
+            if (this.board.marking_dead)
+                sz.markdead.set_color(config.color_active);
+            sz.markdead.draw(gfx);
+        }
         gfx.draw_text(sz.side.x + 3*sr, sz.side.y + (sz.side.h - gfx.font_height) / 2,
             (this.board.curr_side == SIDE_BLACK) ? "BLACK" : "WHITE", config.color_black);
         if (this.board.w == 9 && this.board.h == 9)
@@ -351,6 +384,12 @@ class Panel {
         }
         if (sz.terr.is_in(x, y)) {
             this.board.show_terr = !this.board.show_terr;
+            if (!this.board.show_terr)
+                this.board.marking_dead = false;
+            return true;
+        }
+        if (sz.markdead.is_in(x, y)) {
+            this.board.marking_dead = !this.board.marking_dead;
             return true;
         }
         if (sz.bd9.is_in(x, y)) {
@@ -388,11 +427,12 @@ class Panel {
         const hsp = 12;
         const bh = 42;
         r.panel = new ActiveRect(x, y, w, h, config.color_panel_bg);
-        r.side = new ActiveRect(x + hsp, y + vsp, 150, bh, config.color_panel_side_bg);
-        r.terr = new ActiveRect(x + hsp, r.side.y + r.side.h + vsp, 150, bh, config.color_inactive, "Territory");
+        r.terr = new ActiveRect(x + hsp, y + vsp, 150, bh, config.color_inactive, "Territory");
         const tsx = r.terr.x + r.terr.w + hsp;
-        r.terr_sum = new ActiveRect(tsx, r.terr.y, r.panel.x + r.panel.w - tsx - hsp, bh, config.color_active);
-        const bdy = r.terr.y + r.terr.h + vsp;
+        r.terr_sum = new ActiveRect(tsx, r.terr.y + r.terr.h + vsp, r.panel.x + r.panel.w - tsx - hsp, bh, config.color_info);
+        r.side = new ActiveRect(r.terr_sum.x, y + vsp, r.terr_sum.w, bh, config.color_panel_side_bg);
+        r.markdead = new ActiveRect(x + hsp, r.terr.y + r.terr.h + vsp, 150, bh, config.color_inactive, "Mark dead");
+        const bdy = r.markdead.y + r.markdead.h + vsp;
         const bdw = (r.panel.w - 4*hsp) / 3;
         r.bd9 = new ActiveRect(x + hsp, bdy, bdw, bh, config.color_inactive, "9x9");
         r.bd13 = new ActiveRect(r.bd9.x + r.bd9.w + hsp, bdy, bdw, bh, config.color_inactive, "13x13");
