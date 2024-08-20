@@ -346,12 +346,15 @@ class Panel {
         const sz = this.size_up(gfx);
         sz.panel.draw(gfx);
 
-        const sm = 8;
-        const sr = sz.side.h * .4;
-        const sx = sz.side.x + sr * 1.1;
-        const sy = sz.side.y + sz.side.h/2;
-        sz.side.draw(gfx);
-        Stone.draw_at(gfx, sx, sy, sr, this.board.curr_side);
+        if (!this.board.marking_dead) {
+            const sr = sz.side.h * .4;
+            const sx = sz.side.x + sr * 1.1;
+            const sy = sz.side.y + sz.side.h/2;
+            sz.side.draw(gfx);
+            gfx.draw_text(sz.side.x + 3*sr, sz.side.y + (sz.side.h - gfx.font_height) / 2,
+                (this.board.curr_side == SIDE_BLACK) ? "BLACK" : "WHITE", config.color_black);
+            Stone.draw_at(gfx, sx, sy, sr, this.board.curr_side);
+        }
         if (this.board.show_terr) {
             sz.terr.set_color(config.color_active);
             const tmsg = "W:" + this.board.terr.white_score.toString() + " B:" + this.board.terr.black_score.toString();
@@ -364,8 +367,6 @@ class Panel {
                 sz.markdead.set_color(config.color_active);
             sz.markdead.draw(gfx);
         }
-        gfx.draw_text(sz.side.x + 3*sr, sz.side.y + (sz.side.h - gfx.font_height) / 2,
-            (this.board.curr_side == SIDE_BLACK) ? "BLACK" : "WHITE", config.color_black);
         if (this.board.w == 9 && this.board.h == 9)
             sz.bd9.set_color(config.color_active);
         else if (this.board.w == 13 && this.board.h == 13)
