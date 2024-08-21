@@ -75,6 +75,10 @@ class ActiveRect {
         if (this.text != null)
             gfx.draw_centered_text(this.x + this.loffset, this.y, this.w - this.loffset, this.text, config.color_black);
     }
+    draw_active(gfx, active) {
+        this.set_color(active ? config.color_active : config.color_inactive);
+        this.draw(gfx);
+    }
 };
 
 // --------------------------------------------------------------------
@@ -96,7 +100,7 @@ class Stone {
         const r = sz.sh * config.stone_frac / 2;
         Stone.draw_at(gfx, x, y, r, this.side);
         if (draw_dead && this.is_dead) {
-            const xl = r / Math.sqrt(2);
+            const xl = r / 1.5; // 1.5 is a little bigger than sqrt(2)
             const xw = r / 30;
             const pts1 = [ new Point(-xl+xw,xl+xw), new Point(xl+xw,-xl+xw), new Point(xl-xw,-xl-xw), new Point(-xl-xw,xl-xw) ];
             const pts2 = [ new Point(xl-xw,xl+xw), new Point(-xl-xw,-xl+xw), new Point(-xl+xw,-xl-xw), new Point(xl+xw,xl-xw) ];
@@ -375,30 +379,17 @@ class Panel {
             sz.side.draw(gfx);
             Stone.draw_at(gfx, sz.side.x + sr * 1.5, sz.side.y + sz.side.h/2, sr, this.board.curr_side);
         }
+        sz.terr.draw_active(gfx, this.board.show_terr);
         if (this.board.show_terr) {
-            sz.terr.set_color(config.color_active);
-            const tmsg = "W:" + this.board.terr.white_score.toString() + " B:" + this.board.terr.black_score.toString();
-            sz.terr_sum.set_text(tmsg);
+            const msg = "W:" + this.board.terr.white_score.toString() + " B:" + this.board.terr.black_score.toString();
+            sz.terr_sum.set_text(msg);
             sz.terr_sum.draw(gfx);
+            sz.markdead.draw_active(gfx, this.board.marking_dead);
         }
-        sz.terr.draw(gfx);
-        if (this.board.show_terr) {
-            if (this.board.marking_dead)
-                sz.markdead.set_color(config.color_active);
-            sz.markdead.draw(gfx);
-        }
-        if (this.board.show_labels)
-            sz.labels.set_color(config.color_active);
-        sz.labels.draw(gfx);
-        if (this.board.w == 9 && this.board.h == 9)
-            sz.bd9.set_color(config.color_active);
-        else if (this.board.w == 13 && this.board.h == 13)
-            sz.bd13.set_color(config.color_active);
-        else if (this.board.w == 19 && this.board.h == 19)
-            sz.bd19.set_color(config.color_active);
-        sz.bd9.draw(gfx);
-        sz.bd13.draw(gfx);
-        sz.bd19.draw(gfx);
+        sz.labels.draw_active(gfx, this.board.show_labels);
+        sz.bd9.draw_active(gfx, this.board.w == 9 && this.board.h == 9);
+        sz.bd13.draw_active(gfx, this.board.w == 13 && this.board.h == 13);
+        sz.bd19.draw_active(gfx, this.board.w == 19 && this.board.h == 19);
     }
     mouse(gfx, x, y) {
         const sz = this.size_up(gfx);
@@ -477,8 +468,8 @@ class Game {
         this.board = new Board(w, h);
         this.panel = new Panel(this.board);
     }
-    resize() {
-        this.gfx.set_font_size(this.gfx.ctx.canvas.height*.040);
+    resize(width, height) {
+        this.gfx.set_font_size(height*.040);
         this.draw();
     }
     draw() {
@@ -504,21 +495,17 @@ class Game {
 
 // --------------------------------------------------------------------
 
-function canvas_size(name, width, height) {
-    const canvas = el(name);
-    canvas.width = width;
-    canvas.height = height;
+function canvas_to_window() {
+    const canvas = el("canvas");
+    const s = 20;
+    canvas.width = window.innerWidth - s;
+    canvas.height = window.innerHeight - s;
     return canvas;
 }
 
-function canvas_to_window() {
-    const s = 20;
-    return canvas_size("canvas", window.innerWidth - s, window.innerHeight - s);
-}
-
 function canvas_resize() {
-    canvas_to_window();
-    if (_game != null) _game.resize();
+    const canvas = canvas_to_window();
+    if (_game != null) _game.resize(canvas.width, canvas.height);
 }
 
 function main() {
@@ -526,10 +513,10 @@ function main() {
     const canvas = canvas_to_window();
     const gfx = new Graphics(canvas.getContext("2d"), canvas.height*.040);
     _game = new Game(gfx, 19, 19);
+    window.addEventListener('resize', canvas_resize, false);
     document.addEventListener('mousedown', Game._event_mousedown);
     document.addEventListener('mouseup', Game._event_mouseup);
     document.addEventListener('mousemove', Game._event_mousemove);
-    window.addEventListener('resize', canvas_resize, false);
     _game.draw();
 }
 
