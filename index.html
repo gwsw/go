@@ -18,6 +18,7 @@ var _game = null;
 
 var config = {
     grid_thick             : 1,
+    star_frac              : .1,
     stone_frac             : 1,
     terr_frac              : .4,
 
@@ -116,6 +117,7 @@ class Board {
         this.stones = [];
         this.curr_side = SIDE_BLACK;
         this.show_terr = false;
+        this.show_labels = false;
         this.marking_dead = false;
         this.set_size(w, h);
     }
@@ -240,12 +242,29 @@ class Board {
         // Draw grid.
         const xm = sz.xm + sz.m;
         const ym = sz.ym + sz.m;
+        const fs = sz.m * .80;
+        gfx.set_font_size(fs);
         for (let xn = 0; xn < this.w; ++xn) {
-            gfx.draw_rect(xm + sz.sw * xn, ym, config.grid_thick, sz.fld, config.color_line);
+            const x = xm + sz.sw * xn;
+            gfx.draw_rect(x, ym, config.grid_thick, sz.fld, config.color_line);
+            if (this.show_labels) {
+                const text = ['A','B','C','D','E','F','G','H','J','K','L','M','N','O','P','R','Q','S','T'][xn];
+                const lx = x - sz.sw / 2;
+                gfx.draw_centered_text(lx, sz.xm, sz.sh, text, config.color_black);
+                gfx.draw_centered_text(lx, sz.xm + sz.bs - sz.m, sz.sh, text, config.color_black);
+            }
         }
         for (let yn = 0; yn < this.h; ++yn) {
-            gfx.draw_rect(xm, ym + sz.sh * yn, sz.fld, config.grid_thick, config.color_line);
+            const y = ym + sz.sh * yn;
+            gfx.draw_rect(xm, y, sz.fld, config.grid_thick, config.color_line);
+            if (this.show_labels) {
+                const text = (this.h - yn).toString();
+                const ly = y + (fs - sz.sh) / 2;
+                gfx.draw_centered_text(sz.xm, ly, sz.m, text, config.color_black);
+                gfx.draw_centered_text(sz.xm + sz.bs - sz.m, ly, sz.m, text, config.color_black);
+            }
         }
+        gfx.set_font_size(gfx.ctx.canvas.height*.040);
         // Draw stars.
         const se = (this.w < 11 || this.h < 11) ? 2 : 3;
         const w2 = (this.w % 2) ? Math.floor(this.w / 2) : 0;
@@ -282,7 +301,7 @@ class Board {
         }
     }
     #draw_star(gfx, sz, x, y) {
-        gfx.draw_circle(sz.xm + sz.m + sz.sw * x, sz.ym + sz.m + sz.sh * y, sz.sr, config.color_line);
+        gfx.draw_circle(sz.xm + sz.m + sz.sw * x, sz.ym + sz.m + sz.sh * y, sz.starr, config.color_line);
     }
     #draw_terr(gfx, sz, x, y, color) {
         const s = sz.sh * config.terr_frac;
@@ -306,6 +325,7 @@ class Board {
                         this.add_stone(x, y, this.curr_side);
                         this.curr_side = other_side(this.curr_side);
                     } else {
+                        this.curr_side = this.stones[sx].side;
                         this.del_stone(sx);
                     }
                 }
@@ -319,19 +339,17 @@ class Board {
         const ch = gfx.ctx.canvas.height;
         let r = {};
         if (cw < ch) {
-            r.xm = cw * .05;
+            r.xm = r.ym = cw * .05;
             r.bs = cw - 2*r.xm;
-            r.ym = r.xm;
         } else {
-            r.ym = ch * .05;
+            r.xm = r.ym = ch * .05;
             r.bs = ch - 2*r.ym;
-            r.xm = r.ym;
         }
         r.sw = r.bs / this.w;
         r.sh = r.bs / this.h;
         r.m = Math.min(r.sw/2, r.sh/2);
         r.fld = r.bs - 2*r.m;
-        r.sr = r.sh * .10; ///
+        r.starr = r.sh * config.star_frac;
         return r;
     }
 };
@@ -367,6 +385,9 @@ class Panel {
                 sz.markdead.set_color(config.color_active);
             sz.markdead.draw(gfx);
         }
+        if (this.board.show_labels)
+            sz.labels.set_color(config.color_active);
+        sz.labels.draw(gfx);
         if (this.board.w == 9 && this.board.h == 9)
             sz.bd9.set_color(config.color_active);
         else if (this.board.w == 13 && this.board.h == 13)
@@ -391,6 +412,10 @@ class Panel {
         }
         if (sz.markdead.is_in(x, y)) {
             this.board.marking_dead = !this.board.marking_dead;
+            return true;
+        }
+        if (sz.labels.is_in(x, y)) {
+            this.board.show_labels = !this.board.show_labels;
             return true;
         }
         if (sz.bd9.is_in(x, y)) {
@@ -433,7 +458,8 @@ class Panel {
         r.terr_sum = new ActiveRect(tsx, r.terr.y + r.terr.h + vsp, r.panel.x + r.panel.w - tsx - hsp, bh, config.color_info);
         r.side = new ActiveRect(r.terr_sum.x, y + vsp, r.terr_sum.w, bh, config.color_panel_side_bg);
         r.markdead = new ActiveRect(x + hsp, r.terr.y + r.terr.h + vsp, 150, bh, config.color_inactive, "Mark dead");
-        const bdy = r.markdead.y + r.markdead.h + vsp;
+        r.labels = new ActiveRect(x + hsp, r.markdead.y + r.markdead.h + vsp, 150, bh, config.color_inactive, "Labels");
+        const bdy = r.labels.y + r.labels.h + vsp;
         const bdw = (r.panel.w - 4*hsp) / 3;
         r.bd9 = new ActiveRect(x + hsp, bdy, bdw, bh, config.color_inactive, "9x9");
         r.bd13 = new ActiveRect(r.bd9.x + r.bd9.w + hsp, bdy, bdw, bh, config.color_inactive, "13x13");
@@ -450,7 +476,7 @@ class Game {
         this.panel = new Panel(this.board);
     }
     resize() {
-        this.gfx.set_font_size(canvas.height*.040);
+        this.gfx.set_font_size(this.gfx.ctx.canvas.height*.040);
         this.draw();
     }
     draw() {
