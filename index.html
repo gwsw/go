@@ -53,6 +53,7 @@ class ActiveRect {
         this.h = h;
         this.xb = xb;
         this.yb = yb;
+        this.loffset = 0;
         this.set_color(bg_color, border_color);
         this.set_text(text);
     }
@@ -63,13 +64,16 @@ class ActiveRect {
     set_text(text) {
         this.text = text;
     }
+    set_loffset(loffset) {
+        this.loffset = loffset;
+    }
     is_in(x, y) {
         return x >= this.x && x < this.x + this.w && y >= this.y && y < this.y + this.h;
     }
     draw(gfx) {
         gfx.draw_outlined_rect(this.x, this.y, this.w, this.h, this.xb, this.yb, this.bg_color, this.border_color);
         if (this.text != null)
-            gfx.draw_centered_text(this.x, this.y, this.w, this.text, config.color_black);
+            gfx.draw_centered_text(this.x + this.loffset, this.y, this.w - this.loffset, this.text, config.color_black);
     }
 };
 
@@ -366,12 +370,10 @@ class Panel {
 
         if (!this.board.marking_dead) {
             const sr = sz.side.h * .4;
-            const sx = sz.side.x + sr * 1.1;
-            const sy = sz.side.y + sz.side.h/2;
+            sz.side.set_loffset(sr * 2.1);
+            sz.side.set_text(this.board.curr_side == SIDE_BLACK ? "BLACK" : "WHITE");
             sz.side.draw(gfx);
-            gfx.draw_text(sz.side.x + 3*sr, sz.side.y + (sz.side.h - gfx.font_height) / 2,
-                (this.board.curr_side == SIDE_BLACK) ? "BLACK" : "WHITE", config.color_black);
-            Stone.draw_at(gfx, sx, sy, sr, this.board.curr_side);
+            Stone.draw_at(gfx, sz.side.x + sr * 1.5, sz.side.y + sz.side.h/2, sr, this.board.curr_side);
         }
         if (this.board.show_terr) {
             sz.terr.set_color(config.color_active);
