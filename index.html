@@ -216,18 +216,17 @@ class Board {
             }
         }
         const scoring = territoryScoring(stones, dead);
-        const r = { black:[], white:[] };
+        const final = finalTerritoryScore(stones, dead, 0, 0, 6.5);
+        const r = { black:[], white:[], black_score: final.black, white_score: final.white };
         for (let y = 0; y < this.h; y++) {
             for (let x = 0; x < this.w; x++) {
-                if (scoring[y][x].isTerritoryFor == BLACK)
+                const terr = scoring[y][x].isTerritoryFor;
+                if (terr == BLACK)
                     r.black.push({x:x, y:y});
-                else if (scoring[y][x].isTerritoryFor == WHITE)
+                else if (terr == WHITE)
                     r.white.push({x:x, y:y});
             }
         }
-        const final = finalTerritoryScore(stones, dead, 0, 0, 6.5);
-        r.black_score = final.black;
-        r.white_score = final.white;
         return r;
     }
     #get_stone(x, y) {
