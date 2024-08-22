@@ -8,7 +8,7 @@
 <canvas id="canvas" width="1" height="1" style="font-family:Arial"></canvas>
 
 <script src="../jlib/gfx.js"></script>
-<script src="../goscorer/javascript/goscorer.js"></script>
+<script src="../goscorer/javascript/goscorer.js" type="module"></script>
 
 <script>
 
@@ -18,6 +18,7 @@ var _game = null;
 
 var config = {
     grid_thick             : 1,
+    komi                   : 6.5,
     star_frac              : .1,
     stone_frac             : 1,
     terr_frac              : .4,
@@ -219,7 +220,7 @@ class Board {
             }
         }
         const scoring = territoryScoring(stones, dead);
-        const final = finalTerritoryScore(stones, dead, 0, 0, 6.5);
+        const final = finalTerritoryScore(stones, dead, 0, 0, config.komi);
         const r = { black:[], white:[], black_score: final.black, white_score: final.white };
         for (let y = 0; y < this.h; y++) {
             for (let x = 0; x < this.w; x++) {
