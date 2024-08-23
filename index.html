@@ -248,9 +248,16 @@ class Board {
     }
     draw(gfx) {
         const sz = this.size_up(gfx);
-        // Draw board.
+        this.#draw_board(gfx, sz);
+        this.#draw_grid(gfx, sz);
+        this.#draw_stars(gfx, sz);
+        this.#draw_territory(gfx, sz);
+        this.#draw_stones(gfx, sz);
+    }
+    #draw_board(gfx, sz) {
         gfx.draw_rect(sz.xm, sz.ym, sz.bs, sz.bs, config.color_board);
-        // Draw grid.
+    }
+    #draw_grid(gfx, sz) {
         const xm = sz.xm + sz.m;
         const ym = sz.ym + sz.m;
         const fs = sz.m * .80;
@@ -276,7 +283,8 @@ class Board {
             }
         }
         gfx.set_font_size(gfx.ctx.canvas.height*.040);
-        // Draw stars.
+    }
+    #draw_stars(gfx, sz) {
         const se = (this.w < 11 || this.h < 11) ? 2 : 3;
         const w2 = (this.w % 2) ? Math.floor(this.w / 2) : 0;
         const h2 = (this.h % 2) ? Math.floor(this.h / 2) : 0;
@@ -295,6 +303,8 @@ class Board {
             this.#draw_star(gfx, sz, se, h2);
             this.#draw_star(gfx, sz, this.w - se - 1, h2);
         }
+    }
+    #draw_territory(gfx, sz) {
         // Draw territory.
         this.terr = null;
         if (this.show_terr) {
@@ -306,7 +316,8 @@ class Board {
                 this.#draw_terr(gfx, sz, pt.x, pt.y, config.color_black);
             }
         }
-        // Draw stones.
+    }
+    #draw_stones(gfx, sz) {
         for (const stone of this.stones) {
             stone.draw(gfx, sz, this.show_terr);
         }
