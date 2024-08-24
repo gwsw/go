@@ -254,6 +254,7 @@ class Board {
         const xm = sz.xm + sz.m;
         const ym = sz.ym + sz.m;
         const fs = sz.m * .80;
+        const font = gfx.get_font_size();
         gfx.set_font_size(fs);
         for (let xn = 0; xn < this.w; ++xn) {
             const x = xm + sz.sw * xn;
@@ -275,7 +276,7 @@ class Board {
                 gfx.draw_centered_text(sz.xm + sz.bs - sz.m, ly, sz.m, text, config.color_black);
             }
         }
-        gfx.set_font_size(gfx.ctx.canvas.height*.040);
+        gfx.set_font_size(font);
         // Draw stars.
         const se = (this.w < 11 || this.h < 11) ? 2 : 3;
         const w2 = (this.w % 2) ? Math.floor(this.w / 2) : 0;
@@ -472,7 +473,8 @@ class Game {
         this.panel = new Panel(this.board);
     }
     resize(width, height) {
-        this.gfx.set_font_size(height*.040);
+        const s = Math.min(width, height);
+        this.gfx.set_font_size(s*.040);
         this.draw();
     }
     draw() {
@@ -514,8 +516,9 @@ function canvas_resize() {
 function main() {
     munge_config();
     const canvas = canvas_to_window();
-    const gfx = new Graphics(canvas.getContext("2d"), canvas.height*.040);
+    const gfx = new Graphics(canvas.getContext("2d"));
     _game = new Game(gfx, 19, 19);
+    _game.resize(canvas.width, canvas.height);
     window.addEventListener('resize', canvas_resize, false);
     document.addEventListener('mousedown', Game._event_mousedown);
     document.addEventListener('mouseup', Game._event_mouseup);
